@@ -64,7 +64,7 @@ check_disk() {
                     logger "OK" "DISK=$DEVICE DISK_PERCENTAGE_USED=$PERCENTAGE_USED DISK_SIZE=$SIZE MOUNTED_ON=$MOUNT_POINT"
                 elif [[ "$PERCENTAGE_USED" -gt "$WARNING_THRESHOLD" ]] && [[ "$PERCENTAGE_USED" -lt "$CRITICAL_THRESHOLD" ]]; then
                     logger "WARNING" "DISK=$DEVICE DISK_PERCENTAGE_USED=$PERCENTAGE_USED DISK_SIZE=$SIZE MOUNTED_ON=$MOUNT_POINT"
-	                send_notification "WARNING" "The disk percentage used is above WARNING threshold" "DISK=$DEVICE DISK_PERCENTAGE_USED=$PERCENTAGE_USED DISK_SIZE=$SIZE MOUNTED_ON=$MOUNT_POINT"
+	            send_notification "WARNING" "The disk percentage used is above WARNING threshold" "DISK=$DEVICE DISK_PERCENTAGE_USED=$PERCENTAGE_USED DISK_SIZE=$SIZE MOUNTED_ON=$MOUNT_POINT"
                 elif [[ "$PERCENTAGE_USED" -gt "$CRITICAL_THRESHOLD" ]]; then
                     logger "CRITICAL" "DISK=$DEVICE DISK_PERCENTAGE_USED=$PERCENTAGE_USED DISK_SIZE=$SIZE MOUNTED_ON=$MOUNT_POINT"
                     send_notification "CRITICAL"  "The disk percentage used is above CRITICAL threshold" "DISK=$DEVICE DISK_PERCENTAGE_USED=$PERCENTAGE_USED DISK_SIZE=$SIZE MOUNTED_ON=$MOUNT_POINT"
@@ -74,13 +74,13 @@ check_disk() {
 
         # This part could not be tested properly.
         for i in "${DISK_USAGE_STATS[@]}"; do
-        	DEVICE=$(echo $i | cut -d "!" -f1)
+            DEVICE=$(echo $i | cut -d "!" -f1)
             $SMARTCTL -a $DEVICE > ${TMPFILE}
             SMART_SUPPORT=`awk '/SMART support is/ {print $4}' ${TMPFILE} | /usr/bin/tail -n 1`
 
             if [ "${SMART_SUPPORT}" = "Unavailable" ]; then
                 echo -e "\nSMART support is Unavailable for $device !!! You should enable it \"smartctl -s on $device\"."
-            exit $STATE_UNKNOWN
+            	exit $STATE_UNKNOWN
             elif [ "${SMART_SUPPORT}" != "Enabled" ]; then
                 echo -e "\nMaybe you don't have enabled S.M.A.R.T support in $SMT! Please type \"smartctl -s on $device\" that you have it turned on. Or device does not support S.M.A.R.T function."
             	exit $STATE_UNKNOWN
@@ -96,15 +96,12 @@ check_disk() {
             # run test, print result and set exit code #
             if [ $SRC -eq 0 ] && [ $RSC -eq 0 ] && [ $REC -eq 0 ] && [ $CPS -eq 0 ] && [ $OU -eq 0 ] && [ "$PASS" = "PASSED" ]; then
             	logger "OK" "HDD S.M.A.R.T health: src=$SRC, rsc=$RSC, rec=$REC, cps=$CPS, ou=$OU, health_status=$PASS for $DEVICE"
-                exit $STATE_OK
             elif [ $SRC -gt 1 -a $SRC -lt 10 ] && [ $RSC -gt 0 ] && [ $REC -gt 1 -a $REC -lt 10 ] && [ $CPS -eq 0 ] && [ $OU -eq 0 ] && [ "$PASS" = "PASSED" ]; then
             	logger "WARNING" "HDD S.M.A.R.T health: src=$SRC, , rec=$REC, cps=$CPS, ou=$OU, health_status=$PASS for $DEVICE"
             	send_notification "WARNING" "- HDD has issues" "HDD S.M.A.R.T health: src=$SRC, , rec=$REC, cps=$CPS, ou=$OU, health_status=$PASS for $DEVICE"
-                exit $STATE_WARNING
             else
                 logger "CRITICAL" "HDD S.M.A.R.T health: src=$SRC, , rec=$REC, cps=$CPS, ou=$OU, health_status=$PASS for $DEVICE"
-           		send_notification "CRITICAL" "- HDD has issues" "HDD S.M.A.R.T health: src=$SRC, , rec=$REC, cps=$CPS, ou=$OU, health_status=$PASS for $DEVICE"
-                exit $STATE_CRITICAL
+		send_notification "CRITICAL" "- HDD has issues" "HDD S.M.A.R.T health: src=$SRC, , rec=$REC, cps=$CPS, ou=$OU, health_status=$PASS for $DEVICE"
             fi
     	done
 }
