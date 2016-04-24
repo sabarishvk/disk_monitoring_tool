@@ -39,7 +39,7 @@ print_help() {
 }
 
 
-# Paths to commands used in this script. to check if exists.
+# Paths to command used in this script. to check if exists.
 SMARTCTL=$(which smartctl)
 
 if [ ! -x $SMARTCTL ]; then
@@ -116,7 +116,7 @@ logger() {
     echo "$(date "+%Y-%m-%d-%H-%M-%S") $STATE $MESSAGE" >> $LOGFILE
 }
 
-#send an email to the notification group emailid.
+#send an email to the notification email.
 SENDMAIL=$(which sendmail)
 
 if [ ! -x $SENDMAIL ]; then
