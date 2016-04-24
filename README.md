@@ -3,7 +3,7 @@
 A disk monitoring tool that can monitor disk usage and also report on any faulty disk
 
 ## Installation
-- Make sure 'smartmontools' is installed for checking disk health.
+- Make sure 'smartmontools' is installed for checking disk health. <br />
 apt-get install smartmontools <br />
 
 - Make sure sendmail is installed and configured for sending out notiication mails 
@@ -22,5 +22,5 @@ apt-get install smartmontools <br />
 
 ## Usage
 
-Usage: ./check_disk -w -c -ne -i
+Usage: ./check_disk -w -c -ne -i <br />
 Example : ./check_disk -w 80% -c 90% -ne xyz@abs.com -i 5
