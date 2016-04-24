@@ -1,10 +1,14 @@
 # disk_monitoring_tool
 
-A disk monitoring tool that can monitor disk usage and also report on any faulty disk
+A disk monitoring tool that can monitor disk usage and also report on faulty disk. 
 
 ## Installation
 - Make sure 'smartmontools' is installed for checking disk health. <br />
-apt-get install smartmontools <br />
+	For Debian / Ubuntu systems: Run these commands <br />
+	apt-get install smartmontools <br />
+
+	For Red Hat based systems like CentOS or Fedora: Run these commands <br />
+	yum install smartmontools <br />
 
 - Make sure sendmail is installed and configured for sending out notiication mails 
 
