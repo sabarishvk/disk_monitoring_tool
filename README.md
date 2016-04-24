@@ -26,5 +26,7 @@ A disk monitoring tool that can monitor disk usage and also report on faulty dis
 
 ## Usage
 
+This script needs 'sudo/root' privileges to run
+
 Usage: ./check_disk -w -c -ne -i <br />
 Example : ./check_disk -w 80% -c 90% -ne xyz@abs.com -i 5

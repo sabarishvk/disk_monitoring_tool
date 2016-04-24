@@ -182,7 +182,8 @@ while [ $# -gt 0 ]; do
 shift
 done
 
-# This is just to make it run as a service. This can be deamonised and also a service wrapper can be written around it.
+# This is just to make it run as a service. This can be deamonised and also a service wrapper can be written around it with
+# start/stop and restart options.
 while :
 do
 	check_disk
