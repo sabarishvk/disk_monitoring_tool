@@ -3,9 +3,22 @@
 A disk monitoring tool that can monitor disk usage and also report on any faulty disk
 
 ## Installation
+- Make sure 'smartmontools' is installed for checking disk health.
+apt-get install smartmontools
 
-Download the github code and run the check_disk code.
-Make sure 'sendmail' and 'smarttools' are installed. 
+- Make sure sendmail is installed and configured for sending out notiication mails
+
+	For Debian / Ubuntu systems: Run these commands
+	apt-get install mutt
+	apt-get install swaks
+	apt-get install mailx
+	apt-get install sharutils
+        
+	For Red Hat based systems like CentOS or Fedora: Run these commands
+	yum install mutt
+	yum install swaks
+	yum install mailx
+	yum install sharutils
 
 ## Usage
 
