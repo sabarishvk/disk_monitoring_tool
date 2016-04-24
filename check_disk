@@ -1,0 +1,190 @@
+#!/bin/bash
+
+# Return codes
+STATE_OK=0
+STATE_WARNING=1
+STATE_CRITICAL=2
+STATE_UNKNOWN=3
+
+# Description
+PROGNAME=$(basename $0)
+RELEASE="version 1.0.0"
+
+print_usage() {
+        echo ""
+        echo "$PROGNAME $RELEASE - Disk Utilization check and disk health monitoring tool"
+        echo ""
+        echo "Usage: ./$PROGNAME -w -c -ne -i"
+        echo ""
+        echo "  -w  Warning threshold in % for Disk used (default : 70)"
+        echo "  Exit with WARNING status if disk usage exceeds warning value"
+        echo "  -c  Critical threshold in % for disk used (default : 90)"
+        echo "  Exit with CRITICAL status if disk exceeds critival value"
+        echo "  -h  Show this page"
+        echo "  -ne notification email"
+        echo "  -i disk check interval"
+        echo "logs are available in /tmp/disk_alert*" 
+    echo "Usage: $PROGNAME"
+    echo "Usage: $PROGNAME --help"
+    echo ""
+    exit $STATE_OK
+}
+
+print_help() {
+        print_usage
+        echo ""
+        echo "This monitoring tool will check disk space utilization and disk health"
+        echo ""
+        exit $STATE_OK
+}
+
+
+# Paths to commands used in this script. to check if exists.
+SMARTCTL=$(which smartctl)
+
+if [ ! -x $SMARTCTL ]; then
+    echo "UNKNOWN: smartctl not found or is not executable by the user."
+    exit $STATE_UNKNOWN
+fi
+
+TMPFILE="/tmp/smartctl_stats"
+#all disk checks can be done here.
+check_disk() {
+        declare -a DISK_USAGE_STATS
+        DISK_USAGE_STATS=($(df -H | awk '{ print $1"!"$5"!"$2"!"$6}' | grep -i '/dev/'))
+        for i in "${DISK_USAGE_STATS[@]}"; do
+            DEVICE=$(echo $i | cut -d "!" -f1)
+            PERCENTAGE_USED=$(echo $i | cut -d "!" -f2 | sed s/%//g)
+            SIZE=$(echo $i | cut -d "!" -f3)
+            MOUNT_POINT=$(echo $i | cut -d "!" -f4)
+
+            #check disk space and alert on issue.
+            if [ $PERCENTAGE_USED != "" ]; then
+                if [[ "$PERCENTAGE_USED" -lt "$WARNING_THRESHOLD" ]]; then
+                    logger "OK" "DISK=$DEVICE DISK_PERCENTAGE_USED=$PERCENTAGE_USED DISK_SIZE=$SIZE MOUNTED_ON=$MOUNT_POINT"
+                elif [[ "$PERCENTAGE_USED" -gt "$WARNING_THRESHOLD" ]] && [[ "$PERCENTAGE_USED" -lt "$CRITICAL_THRESHOLD" ]]; then
+                    logger "WARNING" "DISK=$DEVICE DISK_PERCENTAGE_USED=$PERCENTAGE_USED DISK_SIZE=$SIZE MOUNTED_ON=$MOUNT_POINT"
+	                send_notification "WARNING" "The disk percentage used is above WARNING threshold" "DISK=$DEVICE DISK_PERCENTAGE_USED=$PERCENTAGE_USED DISK_SIZE=$SIZE MOUNTED_ON=$MOUNT_POINT"
+                elif [[ "$PERCENTAGE_USED" -gt "$CRITICAL_THRESHOLD" ]]; then
+                    logger "CRITICAL" "DISK=$DEVICE DISK_PERCENTAGE_USED=$PERCENTAGE_USED DISK_SIZE=$SIZE MOUNTED_ON=$MOUNT_POINT"
+                    send_notification "CRITICAL"  "The disk percentage used is above CRITICAL threshold" "DISK=$DEVICE DISK_PERCENTAGE_USED=$PERCENTAGE_USED DISK_SIZE=$SIZE MOUNTED_ON=$MOUNT_POINT"
+                fi
+            fi
+        done
+
+        # This part could not be tested properly.
+        for i in "${DISK_USAGE_STATS[@]}"; do
+        	DEVICE=$(echo $i | cut -d "!" -f1)
+            $SMARTCTL -a $DEVICE > ${TMPFILE}
+            SMART_SUPPORT=`awk '/SMART support is/ {print $4}' ${TMPFILE} | /usr/bin/tail -n 1`
+
+            if [ "${SMART_SUPPORT}" = "Unavailable" ]; then
+                echo -e "\nSMART support is Unavailable for $device !!! You should enable it \"smartctl -s on $device\"."
+            exit $STATE_UNKNOWN
+            elif [ "${SMART_SUPPORT}" != "Enabled" ]; then
+                echo -e "\nMaybe you don't have enabled S.M.A.R.T support in $SMT! Please type \"smartctl -s on $device\" that you have it turned on. Or device does not support S.M.A.R.T function."
+            	exit $STATE_UNKNOWN
+            fi
+
+            SRC=`awk '/Spin_Retry_Count/ {print $10}' ${TMPFILE} `
+            RSC=`awk '/Reallocated_Sector_Ct/ {print $10}' ${TMPFILE} `
+            REC=`awk '/Reallocated_Event_Count/ {print $10}' ${TMPFILE} `
+            CPS=`awk '/Current_Pending_Sector/ {print $10}' ${TMPFILE} `
+            OU=`awk '/Offline_Uncorrectable/ {print $10}' ${TMPFILE} `
+            PASS=`awk -F\: '/test result/ { if ( $2 == " PASSED")  print "PASSED"; else print "FAILED" }' ${TMPFILE} `
+
+            # run test, print result and set exit code #
+            if [ $SRC -eq 0 ] && [ $RSC -eq 0 ] && [ $REC -eq 0 ] && [ $CPS -eq 0 ] && [ $OU -eq 0 ] && [ "$PASS" = "PASSED" ]; then
+            	logger "OK" "HDD S.M.A.R.T health: src=$SRC, rsc=$RSC, rec=$REC, cps=$CPS, ou=$OU, health_status=$PASS for $DEVICE"
+                exit $STATE_OK
+            elif [ $SRC -gt 1 -a $SRC -lt 10 ] && [ $RSC -gt 0 ] && [ $REC -gt 1 -a $REC -lt 10 ] && [ $CPS -eq 0 ] && [ $OU -eq 0 ] && [ "$PASS" = "PASSED" ]; then
+            	logger "WARNING" "HDD S.M.A.R.T health: src=$SRC, , rec=$REC, cps=$CPS, ou=$OU, health_status=$PASS for $DEVICE"
+            	send_notification "WARNING" "- HDD has issues" "HDD S.M.A.R.T health: src=$SRC, , rec=$REC, cps=$CPS, ou=$OU, health_status=$PASS for $DEVICE"
+                exit $STATE_WARNING
+            else
+                logger "CRITICAL" "HDD S.M.A.R.T health: src=$SRC, , rec=$REC, cps=$CPS, ou=$OU, health_status=$PASS for $DEVICE"
+           		send_notification "CRITICAL" "- HDD has issues" "HDD S.M.A.R.T health: src=$SRC, , rec=$REC, cps=$CPS, ou=$OU, health_status=$PASS for $DEVICE"
+                exit $STATE_CRITICAL
+            fi
+    	done
+}
+
+logger() {
+	#log the state of an alert when alert changes.
+	LOGFILE="/tmp/disk_alerts_$(date +"%Y-%m-%d").log"
+
+	STATE=$1
+	MESSAGE=$2
+
+    echo "$(date "+%Y-%m-%d-%H-%M-%S") $STATE $MESSAGE" >> $LOGFILE
+}
+
+#send an email to the notification group emailid.
+SENDMAIL=$(which sendmail)
+
+if [ ! -x $SENDMAIL ]; then
+    echo "UNKNOWN: SENDMAIL not found or is not executable by the user."
+    echo "For Debian / Ubuntu systems: Run these commands"
+        echo "  apt-get install mutt"
+        echo "  apt-get install swaks"
+        echo "  apt-get install mailx"
+        echo "  apt-get install sharutils"
+        echo "For Red Hat based systems like CentOS or Fedora: Run these commands"
+        echo "  yum install mutt"
+        echo "  yum install swaks"
+        echo "  yum install mailx"
+        echo "  yum install sharutils"
+    exit $STATE_UNKNOWN
+fi
+
+send_notification() {
+    STATE=$1
+    SUBJECT=$2
+    MESSAGE=$3
+
+    echo "$MESSAGE" | $(which mail) -s "$STATE - $SUBJECT" $NOTIFICATION_EMAIL
+}
+
+#default values
+WARNING_THRESHOLD="70"
+CRITICAL_THRESHOLD="90"
+INTERVAL="5"
+NOTIFICATION_EMAIL=""
+
+# Parse parameters
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h | --help)
+            print_help
+            exit $STATE_OK
+            ;;
+        -w | --warning)
+                shift
+                WARNING_THRESHOLD=$(echo $1 | sed s/%//g)
+                ;;
+        -c | --critical)
+               shift
+                CRITICAL_THRESHOLD=$(echo $1 | sed s/%//g)
+                ;;
+        -i | --interval)
+               shift
+                INTERVAL=$1
+                ;;
+        -ne | --notification_email)
+                shift
+                NOTIFICATION_EMAIL=$1
+                ;;
+        *)  echo "Unknown argument: $1"
+            print_usage
+            exit $STATE_UNKNOWN
+            ;;
+        esac
+shift
+done
+
+# This is just to make it run as a service. This can be deamonised and also a service wrapper can be written around it.
+while :
+do
+	check_disk
+	sleep $INTERVAL
+done
